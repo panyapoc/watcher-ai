@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  watcher-ai
+Globals:
+  Function:
+    Timeout: 120
+    MemorySize: 128
+    Tracing: Active
+    Architectures:
+      - arm64
+  Api:
+    TracingEnabled: true
+Resources:
+  NoticeReady:
+    Type: AWS::SNS::Topic
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub
+        - ${ResourceName} From Stack ${AWS::StackName}
+        - ResourceName: Api
+      StageName: Prod
+      DefinitionBody:
+        openapi: '3.0'
+        info: {}
+        paths:
+          /result:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getResultFunction.Arn}/invocations
+              responses: {}
+          /webhook:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WebhookFunction.Arn}/invocations
+              responses: {}
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+      Cors:
+        MaxAge: 5
+  getResultFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: getResultFunction
+      CodeUri: lambda/getResult
+      Handler: handler.handler
+      Runtime: python3.11
+      MemorySize: 3008
+      Tracing: Active
+      Events:
+        ApiGETresult:
+          Type: Api
+          Properties:
+            Path: /result
+            Method: GET
+            RestApiId: !Ref Api
+      Environment:
+        Variables:
+          NOTICERESULT_TABLE_NAME: !Ref NoticeResult
+          NOTICERESULT_TABLE_ARN: !GetAtt NoticeResult.Arn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NoticeResult
+  getResultFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${getResultFunction}
+  newNoticeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/newNotice
+      Handler: handler.handler
+      Runtime: python3.11
+      Events:
+        NoticeReady:
+          Type: SNS
+          Properties:
+            Topic: !Ref NoticeReady
+            Region: !Select
+              - 3
+              - !Split
+                - ':'
+                - !Ref NoticeReady
+      Environment:
+        Variables:
+          NOTICERESULT_TABLE_NAME: !Ref NoticeResult
+          NOTICERESULT_TABLE_ARN: !GetAtt NoticeResult.Arn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NoticeResult
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:*
+              Resource: '*'
+      MemorySize: 3008
+  NoticeResult:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: DocID
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: DocID
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+  WebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: !Sub
+        - Stack ${AWS::StackName} Function ${ResourceName}
+        - ResourceName: WebhookFunction
+      CodeUri: lambda/webhook
+      Handler: handler.handler
+      Runtime: python3.11
+      MemorySize: 3008
+      Timeout: 30
+      Tracing: Active
+      Events:
+        ApiPOSTwebhook:
+          Type: Api
+          Properties:
+            Path: /webhook
+            Method: POST
+            RestApiId: !Ref Api
+      Environment:
+        Variables:
+          NOTICEREADY_TOPIC_NAME: !GetAtt NoticeReady.TopicName
+          NOTICEREADY_TOPIC_ARN: !Ref NoticeReady
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt NoticeReady.TopicName
+  WebhookFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${WebhookFunction}
