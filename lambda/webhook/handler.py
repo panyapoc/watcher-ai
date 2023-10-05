@@ -9,22 +9,21 @@ SNS_ARN = os.environ['NOTICEREADY_TOPIC_ARN']
 
 def handler(event, context):
     # Log the event argument for debugging and for use in local development.
-    # print(json.dumps(event))
+    print(json.dumps(event))
 
     # http post body
-    body = ''
-
-    try:
-        body = json.loads(event['body'])
-    except:
-        pass
+    body = event['body']
+    
+    json_body = json.loads(body)
+    message = json_body['Message']
 
 
     print("@@@@@@push to SNS@@@@@@")
-    print(body['Message'])
+    print(message)
+    # print(body['Message'])
     sns.publish(
         TopicArn=SNS_ARN,
-        Message=body['Message']
+        Message=message
     )
 
     return {

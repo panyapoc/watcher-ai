@@ -7,7 +7,7 @@ import datetime
 import re
 import requests as request;
 
-# unit test
+# # unit test
 import dotenv
 dotenv.load_dotenv()
 
@@ -20,14 +20,22 @@ dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(TABLENAME)
 
 def handler(event, context):
-    # print(json.dumps(event))
     for record in event['Records']:
+        # print(record['Sns']['Message'])
+        message = record['Sns']['Message']
         
-        DocID = record['Sns']['Message']
+        message_json = json.loads(message)
+
+        DocID = message_json['DocID']
+        DocName = message_json['DocName']
+
+        print('DocID:',DocID)
+        print('DocName:',DocName)
         # DocID = 0
+        # DocName = 'ประกาศกระทรวงอุตสาหกรรม ฉบับที่'
 
         # !!!CHANGE THIS Get DOC
-        FULL_DOC = getDoc(0)
+        FULL_DOC = getDoc(DocID)
 
         # Pasrse Watchlist for LLM
         WATCHLIST = watchlist()
@@ -55,53 +63,70 @@ def handler(event, context):
             print('------ASKING LLM FOR OUTPUT---------')
             # Get related data for LLM
             
-            related_doc = getChunk('docname',ref_docs,'seachterm')
+            related_doc = getRelatedChunk(DocName,ref_docs,WATCHLIST)
             output = queryLLMforoutput(related_doc,watchlist_string)
 
             print('------queryLLMforoutput---------')
             print(output)
 
+            writeResult(DocID,output)
+
 
         else :
             print("This Doc not related")
-            writeResult('NOT_RELATED_DOC',"NOT RELATED")
+            writeResult(DocID,"NOT RELATED")
 
 
 
         return 0
 
 def getDoc(index) :
-    doc = sampleDoc(index)
-    return doc
+    # doc = sampleDoc(index)
 
-def getChunk(docname,relateddoc,seachterm) :
+    stage = "prod"
+    url = 'https://ahtrxccf3d.execute-api.us-east-1.amazonaws.com/'+stage+'/get-full-doc'
+    body = {
+        "docID": index
+    }
+    reponse = httpGET(url, body)
+    output = reponse.text
+    response_json  = json.loads(output)
 
-    # seachterm = "พระราชบัญญัติมาตรฐานผลิตภัณฑ์อุตสาหกรรม"
-    # sourceList = [docname]
-    # sourceList.append(relateddoc)
-    # stage = "test"
-    # url = 'https://ahtrxccf3d.execute-api.us-east-1.amazonaws.com/'+stage+'/query-word'
-    # body = {
-    # "text": seachterm,
-    # "sourceList": sourceList
-    # }
-    # reponse = httpGET(url, body)
-    # output = reponse.text
-    # mydict = json.loads(output)
+    text = response_json['body']
 
-    # doc = ''
+    print(text)
+    return text
 
-    # for result in mydict['body'] : 
-    #     # print(result)
-    #     if (result['score'] > 0.5) :
-    #         print(result['score'], ' ', result['text'])
-    #         doc = doc + '\n\n'+result['text']
+def getRelatedChunk(docname,relateddoc_array,watchlist_array) :
+    related_chunk = {}
+    relateddoc_array.append(docname)
+    for watchitem in watchlist_array:
+        stage = "prod"
+        url = 'https://ahtrxccf3d.execute-api.us-east-1.amazonaws.com/'+stage+'/query-word'
+        body = {
+            "text": watchitem,
+            "sourceList": relateddoc_array
+        }
+        print(body)
+        reponse = httpGET(url, body)
+        output = reponse.text
+        print(output)
+        mydict = json.loads(output)
 
-    # print('-------LLM INPUT-------')
-    # print(doc)
+        for result in mydict['body'] : 
+            # print(result)
+            if (result['score'] > 0.5) :
+                print(result['score'], ' ', result['text'])
+                related_chunk[result['chunkID']] = result['text']
 
-    doc = sampleDoc(0)
-    return doc
+
+    print('related_chunk',related_chunk)
+
+    LLMinput = ''
+    for key,value in related_chunk:
+        LLMinput = LLMinput + value
+
+    return LLMinput
 
 # Fuction to write json to dynamodb table
 def writeResult(DocID,output) :
@@ -184,8 +209,8 @@ Human: <report>{{report}}</report>
 <list>
 1. สรุปสาระสำคัญโดยละเอียด
 2. วันที่มีผลบังคับใช้
-3. หน้าที่ที่ต้องปฏิบัติ ให้ตอบเป็นข้อๆ
-4. ใน report พูดถึงอะไรใน watchlist บ้างให้ตอบเป็นข้อๆ
+3. สิ่งที่ทำ ให้ตอบเป็นข้อๆ
+4. ใน report พูดถึงอะไรที่อยู่ใน watchlist บ้าง ให้ตอบเป็นข้อๆ
 </list>
 
 <watchlist>{{watchlist}}</watchlist>
@@ -295,36 +320,8 @@ def findJSONinString(stringtofind):
 # --------------UNIT TEST ----------------
 # ----------------------------------------
 
-event = {
-    "Records": [
-      {
-        "EventSource": "aws:sns",
-        "EventVersion": "1.0",
-        "EventSubscriptionArn": "arn:aws:sns:us-east-1::ExampleTopic",
-        "Sns": {
-          "Type": "Notification",
-          "MessageId": "95df01b4-ee98-5cb9-9903-4c221d41eb5e",
-          "TopicArn": "arn:aws:sns:us-east-1:123456789012:ExampleTopic",
-          "Subject": "example subject",
-          "Message": "example message",
-          "Timestamp": "1970-01-01T00:00:00.000Z",
-          "SignatureVersion": "1",
-          "Signature": "EXAMPLE",
-          "SigningCertUrl": "EXAMPLE",
-          "UnsubscribeUrl": "EXAMPLE",
-          "MessageAttributes": {
-            "Test": {
-              "Type": "String",
-              "Value": "TestString"
-            },
-            "TestBinary": {
-              "Type": "Binary",
-              "Value": "TestBinary"
-            }
-          }
-        }
-      }
-    ]
-  }
+event = {'Records': [{'EventSource': 'aws:sns', 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'Sns': {'Type': 'Notification', 'MessageId': 'be73d267-adc0-5c63-8d4c-8fff3552f251', 'TopicArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY', 'Subject': 'test', 'Message': '{"DocID": "347d7376-bbf3-4130-b8c6-bdd5c505e341", "DocName": "\\u0e1b\\u0e23\\u0e30\\u0e01\\u0e32\\u0e28\\u0e01\\u0e23\\u0e30\\u0e17\\u0e23\\u0e27\\u0e07\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e09\\u0e1a\\u0e31\\u0e1a\\u0e17\\u0e35\\u0e48 7109 (\\u0e1e.\\u0e28. 2566) \\u0e2d\\u0e2d\\u0e01\\u0e15\\u0e32\\u0e21\\u0e04\\u0e27\\u0e32\\u0e21\\u0e43\\u0e19\\u0e1e\\u0e23\\u0e30\\u0e23\\u0e32\\u0e0a\\u0e1a\\u0e31\\u0e0d\\u0e0d\\u0e31\\u0e15\\u0e34\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e1e.\\u0e28. 2511 \\u0e40\\u0e23\\u0e37\\u0e48\\u0e2d\\u0e07 \\u0e01\\u0e33\\u0e2b\\u0e19\\u0e14\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e2a\\u0e34\\u0e48\\u0e07\\u0e17\\u0e2d - \\u0e01\\u0e32\\u0e23\\u0e27\\u0e34\\u0e40\\u0e04\\u0e23\\u0e32\\u0e30\\u0e2b\\u0e4c\\u0e17\\u0e32\\u0e07\\u0e40\\u0e04\\u0e21\\u0e35\\u0e40\\u0e0a\\u0e34\\u0e07\\u0e1b\\u0e23\\u0e34\\u0e21\\u0e32\\u0e13 \\u0e40\\u0e25\\u0e48\\u0e21 2"}', 'Timestamp': '2023-10-05T10:56:18.656Z', 'SignatureVersion': '1', 'Signature': 'mqu3Kq1wMo5g2+J0iLTiNXggIJGYB9ujCSdyFjRCVQ7KWaN717Fob8vmkFqbOzBwGEvxhv5Wr9WoGPXjJw2OVKcPk9IN8S/IBksyYgs0ifoXBB+SRCU+gCuC1vjEIAt/pv6PtRU6c5Ys5OHxRAU31aJjxcUe9qmx6WR9ApfLblzZ9dqEnXX9LkIpPkpWeJSWvClVUs4f3jVvvpsB9eEKGN/BeYw8Z8V1D4kfEo1jyo/tTYKDR3kLI6YjeVdbuciM4X0hAmvsSXDKCgIxZnW3t4NkhpqpTf8fdnSULtqTKhwPHynWkYyORIjjcinEUfRqP5EO+stHsE9f9e1vlAjxpw==', 'SigningCertUrl': 'https://sns.us-west-2.amazonaws.com/SimpleNotificationService-01d088a6f77103d0fe307c0069e40ed6.pem', 'UnsubscribeUrl': 'https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'MessageAttributes': {}}}]}
 
-handler(event, None)
+handler(event,'test')
+
+# getDoc("47e82e74-3def-43af-99af-85bec95574f1")
