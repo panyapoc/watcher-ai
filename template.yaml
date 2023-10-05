@@ -79,6 +79,7 @@ Resources:
       CodeUri: lambda/newNotice
       Handler: handler.handler
       Runtime: python3.11
+      Timeout: 900
       Events:
         NoticeReady:
           Type: SNS

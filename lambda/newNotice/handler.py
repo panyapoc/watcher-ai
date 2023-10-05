@@ -4,6 +4,7 @@ import watchlist
 import boto3
 import os
 import datetime
+import re
 
 #enviroment variables
 TABLENAME = os.environ['NOTICERESULT_TABLE_NAME']
@@ -14,14 +15,14 @@ dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table(TABLENAME)
 
 def handler(event, context):
-    print(json.dumps(event))
+    # print(json.dumps(event))
     for record in event['Records']:
-        SNSMessage = json.loads(record['Sns']['Message'])
-        p[]
-        # DocID = SNSMessage['DocID']
-        DocID = 0
+        print('@@@@@@@@@@@@@@@DocID@@@@@@@@@@@@@@@')
+        
+        DocID = record['Sns']['Message']
+        # DocID = 0
 
-        DOC = getChunk(DocID)
+        DOC = getChunk(0)
         WATCHLIST = watchlist()
 
         # print('DOC ',DOC)
@@ -31,11 +32,12 @@ def handler(event, context):
 
         respose_body = respose['body'].read().decode('utf-8')
 
+        print("DOC LEN ", len(respose_body))
+
         print('queryLLM ',respose_body)
+        print('parsed', parseLLM(str(respose_body)))
 
-
-
-        writeResult('1',respose_body)
+        writeResult('2',parseLLM(respose_body))
 
         return json.dumps(respose_body)
 
@@ -49,7 +51,7 @@ def writeResult(DocID,output) :
     item = {
         'DocID' : DocID,
         'timestamp' : getTimestampStr(),
-        'output' : json.dumps(output)
+        'output' : output
     }
 
     respose = table.put_item(Item=item)
@@ -59,8 +61,6 @@ def getTimestampStr() :
     now = datetime.datetime.now()
     timestamp = now.timestamp()
     return str(timestamp)
-
-print(getChunk(0))
 
 def queryLLM(report):
     # prompt_template = "\n\nHuman:<prompt>\n\nAssistant:"
@@ -75,21 +75,29 @@ Human: <report>{{report}}</report>
 3. วันที่มีผลบังคับใช้
 4. หน้าที่ที่ต้องปฏิบัติ
 5. ประเภทโรงงาน 
-6. พรบ. ที่เกี่ยวข้อง ถ้า"มี" ให้ระบุชื่อของพรบ. ที่เกี่ยวข้อง แต่ถ้า"ไม่มี" ให้ตอบว่า ไม่พบพรบ. ที่เกี่ยวข้อง
+6. พรบ. ที่เกี่ยวข้อง
 </list>
 
 <condition>
-Yes
+- เพิ่ม $$ ก่อนเริ่มแต่ละข้อใน list
+- ใส่เลขหัวข้อใน list
+- ใส่ @@ หลังคำตอบแต่ละข้อใน list
 </condition>
 
-จาก report ข้างต้น จงสรุปตาม list ให้ด้วยโดยละเอียดตามแต่ละหัวข้อ หาก condition เท่ากับ Yes ให้ตอบว่า "ใช่"ให้อธิบายโดยละเอียด แต่ถ้าหาก condition ไม่ใช่ Yes ให้ตอบว่า "ไม่เกี่ยวข้อง"
+จาก report ให้สรุปตาม list โดยละเอียด แยกเป็นหัวข้อ 
+หาก list = Yes ตอบว่า "ใช่" และอธิบาย แต่ถ้าหาก = No ตอบว่า "ไม่เกี่ยวข้อง"
 
+ผลลัพท์ list ให้ใส่ cut ตามเงื่อนไขใน condition
+
+คำตอบข้อที่ 6 จาก list หา พ.ร.บ. ที่เกี่ยวข้องกับ พ.ร.บ. ที่ประกาศก่อนหน้าให้ด้วย
 
 Assistant:
 """
 
     # replace <prompt> with query
     prompt = prompt_template.replace("{{report}}", report)
+
+    print('Prompt len ', len(prompt))
 
     body = {
         "prompt": prompt,
@@ -110,3 +118,12 @@ Assistant:
     )   
 
     return response
+
+def parseLLM(llm_output) :
+    output_table = []
+    matches = re.findall(r'\$\$(.*?)@@', llm_output)
+
+    for match in matches:
+        output_table.append(match)
+
+    return output_table
