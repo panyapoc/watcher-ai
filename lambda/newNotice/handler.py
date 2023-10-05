@@ -7,9 +7,9 @@ import datetime
 import re
 import requests as request;
 
-# # unit test
-import dotenv
-dotenv.load_dotenv()
+# # # unit test
+# import dotenv
+# dotenv.load_dotenv()
 
 #enviroment variables
 TABLENAME = os.environ['NOTICERESULT_TABLE_NAME']
@@ -82,6 +82,7 @@ def handler(event, context):
 
 def getDoc(index) :
     # doc = sampleDoc(index)
+    print(index)
 
     stage = "prod"
     url = 'https://ahtrxccf3d.execute-api.us-east-1.amazonaws.com/'+stage+'/get-full-doc'
@@ -90,11 +91,12 @@ def getDoc(index) :
     }
     reponse = httpGET(url, body)
     output = reponse.text
+    print(output)
     response_json  = json.loads(output)
 
     text = response_json['body']
 
-    print(text)
+    print('Full Doc',text)
     return text
 
 def getRelatedChunk(docname,relateddoc_array,watchlist_array) :
@@ -320,8 +322,8 @@ def findJSONinString(stringtofind):
 # --------------UNIT TEST ----------------
 # ----------------------------------------
 
-event = {'Records': [{'EventSource': 'aws:sns', 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'Sns': {'Type': 'Notification', 'MessageId': 'be73d267-adc0-5c63-8d4c-8fff3552f251', 'TopicArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY', 'Subject': 'test', 'Message': '{"DocID": "347d7376-bbf3-4130-b8c6-bdd5c505e341", "DocName": "\\u0e1b\\u0e23\\u0e30\\u0e01\\u0e32\\u0e28\\u0e01\\u0e23\\u0e30\\u0e17\\u0e23\\u0e27\\u0e07\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e09\\u0e1a\\u0e31\\u0e1a\\u0e17\\u0e35\\u0e48 7109 (\\u0e1e.\\u0e28. 2566) \\u0e2d\\u0e2d\\u0e01\\u0e15\\u0e32\\u0e21\\u0e04\\u0e27\\u0e32\\u0e21\\u0e43\\u0e19\\u0e1e\\u0e23\\u0e30\\u0e23\\u0e32\\u0e0a\\u0e1a\\u0e31\\u0e0d\\u0e0d\\u0e31\\u0e15\\u0e34\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e1e.\\u0e28. 2511 \\u0e40\\u0e23\\u0e37\\u0e48\\u0e2d\\u0e07 \\u0e01\\u0e33\\u0e2b\\u0e19\\u0e14\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e2a\\u0e34\\u0e48\\u0e07\\u0e17\\u0e2d - \\u0e01\\u0e32\\u0e23\\u0e27\\u0e34\\u0e40\\u0e04\\u0e23\\u0e32\\u0e30\\u0e2b\\u0e4c\\u0e17\\u0e32\\u0e07\\u0e40\\u0e04\\u0e21\\u0e35\\u0e40\\u0e0a\\u0e34\\u0e07\\u0e1b\\u0e23\\u0e34\\u0e21\\u0e32\\u0e13 \\u0e40\\u0e25\\u0e48\\u0e21 2"}', 'Timestamp': '2023-10-05T10:56:18.656Z', 'SignatureVersion': '1', 'Signature': 'mqu3Kq1wMo5g2+J0iLTiNXggIJGYB9ujCSdyFjRCVQ7KWaN717Fob8vmkFqbOzBwGEvxhv5Wr9WoGPXjJw2OVKcPk9IN8S/IBksyYgs0ifoXBB+SRCU+gCuC1vjEIAt/pv6PtRU6c5Ys5OHxRAU31aJjxcUe9qmx6WR9ApfLblzZ9dqEnXX9LkIpPkpWeJSWvClVUs4f3jVvvpsB9eEKGN/BeYw8Z8V1D4kfEo1jyo/tTYKDR3kLI6YjeVdbuciM4X0hAmvsSXDKCgIxZnW3t4NkhpqpTf8fdnSULtqTKhwPHynWkYyORIjjcinEUfRqP5EO+stHsE9f9e1vlAjxpw==', 'SigningCertUrl': 'https://sns.us-west-2.amazonaws.com/SimpleNotificationService-01d088a6f77103d0fe307c0069e40ed6.pem', 'UnsubscribeUrl': 'https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'MessageAttributes': {}}}]}
+# event = {'Records': [{'EventSource': 'aws:sns', 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'Sns': {'Type': 'Notification', 'MessageId': 'be73d267-adc0-5c63-8d4c-8fff3552f251', 'TopicArn': 'arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY', 'Subject': 'test', 'Message': '{"DocID": "347d7376-bbf3-4130-b8c6-bdd5c505e341", "DocName": "\\u0e1b\\u0e23\\u0e30\\u0e01\\u0e32\\u0e28\\u0e01\\u0e23\\u0e30\\u0e17\\u0e23\\u0e27\\u0e07\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e09\\u0e1a\\u0e31\\u0e1a\\u0e17\\u0e35\\u0e48 7109 (\\u0e1e.\\u0e28. 2566) \\u0e2d\\u0e2d\\u0e01\\u0e15\\u0e32\\u0e21\\u0e04\\u0e27\\u0e32\\u0e21\\u0e43\\u0e19\\u0e1e\\u0e23\\u0e30\\u0e23\\u0e32\\u0e0a\\u0e1a\\u0e31\\u0e0d\\u0e0d\\u0e31\\u0e15\\u0e34\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e1e.\\u0e28. 2511 \\u0e40\\u0e23\\u0e37\\u0e48\\u0e2d\\u0e07 \\u0e01\\u0e33\\u0e2b\\u0e19\\u0e14\\u0e21\\u0e32\\u0e15\\u0e23\\u0e10\\u0e32\\u0e19\\u0e1c\\u0e25\\u0e34\\u0e15\\u0e20\\u0e31\\u0e13\\u0e11\\u0e4c\\u0e2d\\u0e38\\u0e15\\u0e2a\\u0e32\\u0e2b\\u0e01\\u0e23\\u0e23\\u0e21 \\u0e2a\\u0e34\\u0e48\\u0e07\\u0e17\\u0e2d - \\u0e01\\u0e32\\u0e23\\u0e27\\u0e34\\u0e40\\u0e04\\u0e23\\u0e32\\u0e30\\u0e2b\\u0e4c\\u0e17\\u0e32\\u0e07\\u0e40\\u0e04\\u0e21\\u0e35\\u0e40\\u0e0a\\u0e34\\u0e07\\u0e1b\\u0e23\\u0e34\\u0e21\\u0e32\\u0e13 \\u0e40\\u0e25\\u0e48\\u0e21 2"}', 'Timestamp': '2023-10-05T10:56:18.656Z', 'SignatureVersion': '1', 'Signature': 'mqu3Kq1wMo5g2+J0iLTiNXggIJGYB9ujCSdyFjRCVQ7KWaN717Fob8vmkFqbOzBwGEvxhv5Wr9WoGPXjJw2OVKcPk9IN8S/IBksyYgs0ifoXBB+SRCU+gCuC1vjEIAt/pv6PtRU6c5Ys5OHxRAU31aJjxcUe9qmx6WR9ApfLblzZ9dqEnXX9LkIpPkpWeJSWvClVUs4f3jVvvpsB9eEKGN/BeYw8Z8V1D4kfEo1jyo/tTYKDR3kLI6YjeVdbuciM4X0hAmvsSXDKCgIxZnW3t4NkhpqpTf8fdnSULtqTKhwPHynWkYyORIjjcinEUfRqP5EO+stHsE9f9e1vlAjxpw==', 'SigningCertUrl': 'https://sns.us-west-2.amazonaws.com/SimpleNotificationService-01d088a6f77103d0fe307c0069e40ed6.pem', 'UnsubscribeUrl': 'https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:430636640134:watcher-ai-NoticeReady-0MS3urkThRsY:4a437c1f-63bc-452a-aa95-d4a3e7eee928', 'MessageAttributes': {}}}]}
 
-handler(event,'test')
+# handler(event,'test')
 
 # getDoc("47e82e74-3def-43af-99af-85bec95574f1")
