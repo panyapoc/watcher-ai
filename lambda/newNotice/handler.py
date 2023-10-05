@@ -50,17 +50,16 @@ def handler(event, context):
         if classification_result['inwatchlist'] == 'true' :
             print("This Doc is related")
 
-            related_doc = classification_result['related']
+            ref_docs = classification_result['related']
 
             print('------ASKING LLM FOR OUTPUT---------')
             # Get related data for LLM
-            related_doc = getChunk('docname','relateddoc','seachterm')
-            output = queryLLMforoutput(related_doc)
+            
+            related_doc = getChunk('docname',ref_docs,'seachterm')
+            output = queryLLMforoutput(related_doc,watchlist_string)
 
             print('------queryLLMforoutput---------')
             print(output)
-
-
 
 
         else :
@@ -151,8 +150,6 @@ Assistant:
     # replace <prompt> with query
     prompt = prompt_template.replace("{{report}}", report).replace("{{watchlist}}", watchlist_string)
     
-    # print('@@@@@PROMPT@@@@@')
-    # print(prompt)
     print('queryLLMforref prompt len: ', len(prompt))
 
     body = {
@@ -177,7 +174,7 @@ Assistant:
 
     return LLMresponse['completion']
 
-def queryLLMforoutput(report):
+def queryLLMforoutput(report,watchlist_string):
     # prompt_template = "\n\nHuman:<prompt>\n\nAssistant:"
 
     prompt_template ="""
@@ -185,10 +182,10 @@ def queryLLMforoutput(report):
 Human: <report>{{report}}</report>
 
 <list>
-1. Summary: สรุปสาระสำคัญอย่างน้อย 100 คำ
-2. Effective Date : วันที่มีผลบังคับใช้ ให้ตอบเป็น dd/mm/YYYY และรายละเอียดอื่นถ้ามี
-3. Action item: หน้าที่ที่ต้องปฏิบัติ ให้ตอบเป็นข้อๆ
-4. inventory : ใน report พูถึงอะไรใน watchlist บ้าง 
+1. สรุปสาระสำคัญโดยละเอียด
+2. วันที่มีผลบังคับใช้
+3. หน้าที่ที่ต้องปฏิบัติ ให้ตอบเป็นข้อๆ
+4. ใน report พูดถึงอะไรใน watchlist บ้างให้ตอบเป็นข้อๆ
 </list>
 
 <watchlist>{{watchlist}}</watchlist>
@@ -211,12 +208,10 @@ Human: <report>{{report}}</report>
 </template>
 
 Assistant:
-
-Assistant:
 """
 
     # replace <prompt> with query
-    prompt = prompt_template.replace("{{report}}", report)
+    prompt = prompt_template.replace("{{report}}", report).replace("{{watchlist}}", watchlist_string)
 
     print('Prompt len ', len(prompt))
 
@@ -296,9 +291,9 @@ def findJSONinString(stringtofind):
     return largest_json_object
 
 
-# ------------------------------------------------------------------------------------------------
-# UNIT TEST
-# ------------------------------------------------------------------------------------------------
+# ----------------------------------------
+# --------------UNIT TEST ----------------
+# ----------------------------------------
 
 event = {
     "Records": [
